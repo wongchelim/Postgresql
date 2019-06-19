@@ -1,0 +1,11 @@
+pgmetrics is a good metrics tool give a glance of the database information
+==========================================================================================
+
+wget https://github.com/rapidloop/pgmetrics/releases/download/v1.7.0/pgmetrics_1.7.0_linux_amd64.tar.gz
+tar xfz pgmetrics_1.7.0_linux_amd64.tar.gz
+cd pgmetrics_1.7.0_linux_amd64
+./pgmetrics --help
+
+
+To generate the file
+./pgmetrics -t 3 -U postgres -h /tmp -f human -o ./log_day.json testdb
