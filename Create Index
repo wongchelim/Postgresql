@@ -1,0 +1,10 @@
+Some of the best practices to create index and primary keys
+================================================================================
+
+Create index
+CREATE INDEX CONCURRENTLY invoice3_place_idx ON mytestschema.invoice3 USING btree (invoice_place) tablespace cust_tbs;
+
+
+Create primary keys
+CREATE UNIQUE INDEX CONCURRENTLY items_pk ON items (id); -- takes a long time, but doesn’t block queries
+ALTER TABLE items ADD CONSTRAINT items_pk PRIMARY KEY USING INDEX items_pk;
