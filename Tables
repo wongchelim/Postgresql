@@ -1,0 +1,41 @@
+Get a DDL for a table
+================================================================
+pg_dump -t 'mytestschema.invoice' --schema-only testdb
+
+Check for table details
+================================================================
+\d+ mytestschema.invoice
+
+Check for table privileges
+================================================================
+\dp+ mytestschema.invoice
+
+
+Check size of the tabble
+================================================================
+select pg_relation_size('mytestschema.invoice');
+select pg_size_pretty(pg_relation_size('mytestschema.invoice'));
+select pg_size_pretty(pg_relation_size('mytestschema.invoice')::bigint);
+SELECT pg_table_size('mytestschema.invoice') / 1024 /1024 || 'MB'; 
+
+Check the top 10 largest table in the DB
+================================================================
+SELECT 
+       relname AS "table_name", 
+       pg_size_pretty(pg_table_size(C.oid)) AS "table_size" 
+FROM 
+       pg_class C 
+LEFT JOIN pg_namespace N ON (N.oid = C.relnamespace) 
+WHERE nspname NOT IN ('pg_catalog', 'information_schema') AND nspname !~ '^pg_toast' AND relkind IN ('r') 
+ORDER BY pg_table_size(C.oid) 
+DESC LIMIT 10;
+OR
+SELECT nspname || '.' || relname AS "relation",
+    pg_size_pretty(pg_total_relation_size(C.oid)) AS "total_size"
+  FROM pg_class C
+  LEFT JOIN pg_namespace N ON (N.oid = C.relnamespace)
+  WHERE nspname NOT IN ('pg_catalog', 'information_schema')
+    AND C.relkind <> 'i'
+    AND nspname !~ '^pg_toast'
+  ORDER BY pg_total_relation_size(C.oid) DESC
+  LIMIT 20;
