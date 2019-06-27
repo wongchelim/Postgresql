@@ -1,0 +1,155 @@
+======================================================
+======================================================
+Switchover
+======================================================
+======================================================
+Node 1
+======================================================
+
+repmgr -f /etc/repmgr/10/repmgr.conf cluster show
+ 
+ ID | Name      | Role    | Status    | Upstream  | Location | Priority | Connection string
+----+-----------+---------+-----------+-----------+----------+----------+--------------------------------------------------------------
+ 1  | postnode1 | standby |   running | postnode2 | default  | 100      | host=oel7postdb1 user=repmgr dbname=repmgr connect_timeout=2
+ 2  | postnode2 | primary | * running |           | default  | 100      | host=oel7postdb2 user=repmgr dbname=repmgr connect_timeout=2
+
+
+Node 2
+standby switchover dry run 
+==========================================
+repmgr standby switchover -f /etc/repmgr/10/repmgr.conf --siblings-follow --dry-run
+
+
+-bash-4.2$ repmgr standby switchover -f /etc/repmgr/10/repmgr.conf --siblings-follow --dry-run
+DEBUG: connecting to: "user=repmgr connect_timeout=2 dbname=repmgr host=oel7postdb2 fallback_application_name=repmgr"
+NOTICE: checking switchover on node "postnode2" (ID: 2) in --dry-run mode
+DEBUG: connecting to: "user=repmgr connect_timeout=2 dbname=repmgr host=oel7postdb1 fallback_application_name=repmgr"
+INFO: SSH connection to host "oel7postdb1" succeeded
+DEBUG: remote_command():
+  ssh -o Batchmode=yes -q -o ConnectTimeout=10 oel7postdb1 /usr/pgsql-10/bin/repmgr -f /etc/repmgr/10/repmgr.conf --version 2>/dev/null && echo "1" || echo "0"
+DEBUG: remote_command():
+  ssh -o Batchmode=yes -q -o ConnectTimeout=10 oel7postdb1 /usr/pgsql-10/bin/repmgr -f /etc/repmgr/10/repmgr.conf node check --data-directory-config --optformat -LINFO 2>/dev/null
+INFO: able to execute "repmgr" on remote host "localhost"
+WARNING: option "--sibling-nodes" specified, but no sibling nodes exist
+INFO: 1 walsenders required, 3 available
+DEBUG: remote_command():
+  ssh -o Batchmode=yes -q -o ConnectTimeout=10 oel7postdb1 /usr/pgsql-10/bin/repmgr -f /etc/repmgr/10/repmgr.conf node check --remote-node-id=2 --replication-connection
+DEBUG: connecting to: "user=repmgr connect_timeout=2 dbname=repmgr host=oel7postdb1 fallback_application_name=repmgr"
+INFO: demotion candidate is able to make replication connection to promotion candidate
+DEBUG: remote_command():
+  ssh -o Batchmode=yes -q -o ConnectTimeout=10 oel7postdb1 /usr/pgsql-10/bin/repmgr -f /etc/repmgr/10/repmgr.conf node check --terse -LERROR --archive-ready --optformat
+INFO: 0 pending archive files
+DEBUG: lag is 0
+INFO: replication lag on this standby is 0 seconds
+DEBUG: minimum of 1 free slots (0 for siblings) required; 10 available
+INFO: 1 replication slots required, 10 available
+DEBUG: connecting to: "user=repmgr connect_timeout=2 dbname=repmgr host=oel7postdb1 fallback_application_name=repmgr"
+DEBUG: connecting to: "user=repmgr connect_timeout=2 dbname=repmgr host=oel7postdb2 fallback_application_name=repmgr"
+INFO: would pause repmgrd on node postnode1 (ID 1)
+INFO: would pause repmgrd on node postnode2 (ID 2)
+NOTICE: local node "postnode2" (ID: 2) would be promoted to primary; current primary "postnode1" (ID: 1) would be demoted to standby
+DEBUG: remote_command():
+  ssh -o Batchmode=yes -q -o ConnectTimeout=10 oel7postdb1 /usr/pgsql-10/bin/repmgr -f /etc/repmgr/10/repmgr.conf node service --terse -LERROR --list-actions --action=stop
+INFO: following shutdown command would be run on node "postnode1":
+  "/usr/pgsql-10/bin/pg_ctl  -D '/u01/app/PostgreSQL/10/data' -W -m fast stop"
+-bash-4.2$
+
+Okay to proceed
+=====================
+repmgr standby switchover -f /etc/repmgr/10/repmgr.conf --siblings-follow
+
+
+
+
+
+-bash-4.2$ repmgr standby switchover -f /etc/repmgr/10/repmgr.conf --siblings-follow
+DEBUG: connecting to: "user=repmgr connect_timeout=2 dbname=repmgr host=oel7postdb2 fallback_application_name=repmgr"
+NOTICE: executing switchover on node "postnode2" (ID: 2)
+DEBUG: connecting to: "user=repmgr connect_timeout=2 dbname=repmgr host=oel7postdb1 fallback_application_name=repmgr"
+DEBUG: remote_command():
+  ssh -o Batchmode=yes -q -o ConnectTimeout=10 oel7postdb1 /usr/pgsql-10/bin/repmgr -f /etc/repmgr/10/repmgr.conf --version 2>/dev/null && echo "1" || echo "0"
+DEBUG: remote_command():
+  ssh -o Batchmode=yes -q -o ConnectTimeout=10 oel7postdb1 /usr/pgsql-10/bin/repmgr -f /etc/repmgr/10/repmgr.conf node check --data-directory-config --optformat -LINFO 2>/dev/null
+WARNING: option "--sibling-nodes" specified, but no sibling nodes exist
+DEBUG: remote_command():
+  ssh -o Batchmode=yes -q -o ConnectTimeout=10 oel7postdb1 /usr/pgsql-10/bin/repmgr -f /etc/repmgr/10/repmgr.conf node check --remote-node-id=2 --replication-connection
+DEBUG: connecting to: "user=repmgr connect_timeout=2 dbname=repmgr host=oel7postdb1 fallback_application_name=repmgr"
+DEBUG: remote_command():
+  ssh -o Batchmode=yes -q -o ConnectTimeout=10 oel7postdb1 /usr/pgsql-10/bin/repmgr -f /etc/repmgr/10/repmgr.conf node check --terse -LERROR --archive-ready --optformat
+DEBUG: lag is 0
+DEBUG: minimum of 1 free slots (0 for siblings) required; 10 available
+DEBUG: connecting to: "user=repmgr connect_timeout=2 dbname=repmgr host=oel7postdb1 fallback_application_name=repmgr"
+DEBUG: connecting to: "user=repmgr connect_timeout=2 dbname=repmgr host=oel7postdb2 fallback_application_name=repmgr"
+DEBUG: pausing repmgrd on node postnode1 (ID 1)
+DEBUG: pausing repmgrd on node postnode2 (ID 2)
+NOTICE: local node "postnode2" (ID: 2) will be promoted to primary; current primary "postnode1" (ID: 1) will be demoted to standby
+NOTICE: stopping current primary node "postnode1" (ID: 1)
+DEBUG: remote_command():
+  ssh -o Batchmode=yes -q -o ConnectTimeout=10 oel7postdb1 /usr/pgsql-10/bin/repmgr -f /etc/repmgr/10/repmgr.conf node service --action=stop --checkpoint
+DEBUG: connecting to: "user=repmgr connect_timeout=2 dbname=repmgr host=oel7postdb1 fallback_application_name=repmgr"
+NOTICE: issuing CHECKPOINT
+DETAIL: executing server command "/usr/pgsql-10/bin/pg_ctl  -D '/u01/app/PostgreSQL/10/data' -W -m fast stop"
+INFO: checking for primary shutdown; 1 of 60 attempts ("shutdown_check_timeout")
+DEBUG: ping status is: PQPING_REJECT
+DEBUG: sleeping 1 second until next check
+INFO: checking for primary shutdown; 2 of 60 attempts ("shutdown_check_timeout")
+DEBUG: ping status is: PQPING_NO_RESPONSE
+DEBUG: remote_command():
+  ssh -o Batchmode=yes -q -o ConnectTimeout=10 oel7postdb1 /usr/pgsql-10/bin/repmgr -f /etc/repmgr/10/repmgr.conf node status --is-shutdown-cleanly
+NOTICE: current primary has been cleanly shut down at location 0/8E000028
+DEBUG: local node last receive LSN is 0/8E000098, primary shutdown checkpoint LSN is 0/8E000028
+NOTICE: promoting standby to primary
+DETAIL: promoting server "postnode2" (ID: 2) using "/usr/pgsql-10/bin/pg_ctl  -w -D '/u01/app/PostgreSQL/10/data' promote"
+waiting for server to promote.... done
+server promoted
+NOTICE: waiting up to 15 seconds (parameter "promote_check_timeout") for promotion to complete
+DEBUG: setting node 2 as primary and marking existing primary as failed
+NOTICE: STANDBY PROMOTE successful
+DETAIL: server "postnode2" (ID: 2) was successfully promoted to primary
+DEBUG: executing:
+  /usr/pgsql-10/bin/repmgr -f /etc/repmgr/10/repmgr.conf -d  \'user=repmgr connect_timeout=2 dbname=repmgr host=oel7postdb2\' node rejoin
+DEBUG: remote_command():
+  ssh -o Batchmode=yes -q -o ConnectTimeout=10 oel7postdb1 /usr/pgsql-10/bin/repmgr -f /etc/repmgr/10/repmgr.conf -d  \'user=repmgr connect_timeout=2 dbname=repmgr host=oel7postdb2\' node rejoin
+DEBUG: connecting to: "user=repmgr connect_timeout=2 dbname=repmgr host=oel7postdb2 fallback_application_name=repmgr"
+DEBUG: local tli: 5; local_xlogpos: 0/8E000028; follow_target_history->tli: 5; follow_target_history->end: 0/8E000098
+INFO: local node 1 can attach to rejoin target node 2
+DETAIL: local node's recovery point: 0/8E000028; rejoin target node's fork point: 0/8E000098
+DEBUG: create_replication_slot(): creating slot "repmgr_slot_1" on upstream
+NOTICE: setting node 1's upstream to node 2
+DEBUG: create_recovery_file(): creating "/u01/app/PostgreSQL/10/data/recovery.conf"...
+DEBUG: recovery file is:
+standby_mode = 'on'
+primary_conninfo = 'user=repmgr connect_timeout=2 host=oel7postdb2 application_name=postnode1'
+recovery_target_timeline = 'latest'
+primary_slot_name = repmgr_slot_1
+
+WARNING: unable to ping "host=oel7postdb1 user=repmgr dbname=repmgr connect_timeout=2"
+DETAIL: PQping() returned "PQPING_NO_RESPONSE"
+NOTICE: starting server using "/usr/pgsql-10/bin/pg_ctl  -w -D '/u01/app/PostgreSQL/10/data' start"
+DEBUG: connecting to: "user=repmgr connect_timeout=2 dbname=repmgr host=oel7postdb1 fallback_application_name=repmgr"
+NOTICE: replication slot "repmgr_slot_2" deleted on node 1
+NOTICE: NODE REJOIN successful
+DETAIL: node 1 is now attached to node 2
+DEBUG: connecting to: "user=repmgr connect_timeout=2 dbname=repmgr host=oel7postdb1 fallback_application_name=repmgr"
+NOTICE: switchover was successful
+DETAIL: node "postnode2" is now primary and node "postnode1" is attached as standby
+DEBUG: unpausing repmgrd on node postnode1 (ID 1)
+DEBUG: connecting to: "user=repmgr connect_timeout=2 dbname=repmgr host=oel7postdb1 fallback_application_name=repmgr"
+DEBUG: unpausing repmgrd on node postnode2 (ID 2)
+DEBUG: connecting to: "user=repmgr connect_timeout=2 dbname=repmgr host=oel7postdb2 fallback_application_name=repmgr"
+NOTICE: STANDBY SWITCHOVER has completed successfully
+-bash-4.2$
+
+Node 2
+======================================================
+repmgr -f /etc/repmgr/10/repmgr.conf cluster show
+ ID | Name      | Role    | Status    | Upstream  | Location | Priority | Connection string
+----+-----------+---------+-----------+-----------+----------+----------+--------------------------------------------------------------
+ 1  | postnode1 | standby |   running | postnode2 | default  | 100      | host=oel7postdb1 user=repmgr dbname=repmgr connect_timeout=2
+ 2  | postnode2 | primary | * running |           | default  | 100      | host=oel7postdb2 user=repmgr dbname=repmgr connect_timeout=2
+
+ Node 1
+  ID | Name      | Role    | Status    | Upstream  | Location | Priority | Connection string
+----+-----------+---------+-----------+-----------+----------+----------+--------------------------------------------------------------
+ 1  | postnode1 | standby |   running | postnode2 | default  | 100      | host=oel7postdb1 user=repmgr dbname=repmgr connect_timeout=2
+ 2  | postnode2 | primary | * running |           | default  | 100      | host=oel7postdb2 user=repmgr dbname=repmgr connect_timeout=2
