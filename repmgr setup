@@ -1,0 +1,102 @@
+Install
+yum install repmgr10
+
+Check where is the location of the config file and the executable file
+============================================================================================================================
+locate repmgr
+/usr/pgsql-10/bin/repmgr
+/etc/repmgr/10/repmgr.conf
+
+Change the file permission to postgres to allow the postgres user use the file
+============================================================================================================================
+cd /usr/pgsql-10/bin/
+chown -R postgres:postgres .
+ll /etc/repmgr/10/repmgr.conf
+chown postgres:postgres /etc/repmgr/10/repmgr.conf
+
+On primary which is node 1
+create db
+===================================================
+createuser -s repmgr
+createdb repmgr -O repmgr
+
+On Node 1
+==================================================
+vim /etc/repmgr/10/repmgr.conf
+*****************************************************************************************************************
+node_id=1
+node_name="postnode1"
+conninfo='host=oel7postdb1 user=repmgr dbname=repmgr connect_timeout=2'
+data_directory='/u01/app/PostgreSQL/10/data'
+
+use_replication_slots=yes
+monitoring_history=yes
+monitor_interval_secs=5
+
+#can be ignore below 3 lines as not all cases require immediate failover without anyone noticed
+failover=automatic
+promote_command='repmgr standby promote -f /etc/repmgr/10/repmgr.conf --log-to-file'
+follow_command='repmgr standby follow -f /etc/repmgr/10/repmgr.conf --upstream-node-id=%n'
+
+log_level=DEBUG
+log_facility=STDERR
+log_file='/u01/app/PostgreSQL/10/data/log/repmgrd.log'
+
+promote_check_timeout = 15
+
+priority=100
+reconnect_attempts=2
+reconnect_interval=5
+*****************************************************************************************************************
+
+Register the master/primary node
+==============================================================
+repmgr -f /etc/repmgr/10/repmgr.conf master register
+
+
+==================================================
+==================================================
+On Node 2
+==================================================
+==================================================
+
+cd /usr/pgsql-10/bin/
+chown -R postgres:postgres .
+ll /etc/repmgr/10/repmgr.conf
+chown postgres:postgres /etc/repmgr/10/repmgr.conf
+
+vim /etc/repmgr/10/repmgr.conf
+*****************************************************************************************************************
+node_id=2
+node_name="postnode2"
+conninfo='host=oel7postdb2 user=repmgr dbname=repmgr connect_timeout=2'
+data_directory='/u01/app/PostgreSQL/10/data'
+
+use_replication_slots=yes
+monitoring_history=yes
+monitor_interval_secs=5
+
+#can be ignore below 3 lines as not all cases require immediate failover without anyone noticed
+failover=automatic
+promote_command='repmgr standby promote -f /etc/repmgr/10/repmgr.conf --log-to-file'
+follow_command='repmgr standby follow -f /etc/repmgr/10/repmgr.conf --upstream-node-id=%n'
+
+log_level=DEBUG
+log_facility=STDERR
+log_file='/u01/app/PostgreSQL/10/data/log/repmgrd.log'
+
+promote_check_timeout = 15
+
+priority=100
+reconnect_attempts=2
+reconnect_interval=5
+*****************************************************************************************************************
+
+On node 2 register the standby node 2
+==============================================================
+test
+repmgr -h oel7postdb1 -U repmgr -d repmgr -f /etc/repmgr/10/repmgr.conf standby clone --dry-run
+execute
+repmgr -h oel7postdb1 -U repmgr -d repmgr -f /etc/repmgr/10/repmgr.conf standby clone
+Register it as the standby
+repmgr -f /etc/repmgr/10/repmgr.conf standby register
