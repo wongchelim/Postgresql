@@ -1,0 +1,296 @@
+In barman server
+========================================================================
+useradd barman -p barman
+
+Install barman 
+========================================================================
+yum install barman
+
+Change owner
+========================================================================
+chown -R barman:barman /etc/barman.conf
+chown -R barman:barman /etc/barman.d
+chmod 700 /etc/barman.d
+
+Change configuration
+========================================================================
+vim /etc/barman.conf
+
+; Barman, Backup and Recovery Manager for PostgreSQL
+; http://www.pgbarman.org/ - http://www.2ndQuadrant.com/
+;
+; Main configuration file
+
+[barman]
+; System user
+barman_user = barman
+
+; Directory of configuration files. Place your sections in separate files with .conf extension
+; For example place the 'main' server section in /etc/barman.d/main.conf
+configuration_files_directory = /etc/barman.d
+
+; Main directory
+barman_home = /var/lib/barman
+
+; Locks directory - default: %(barman_home)s
+barman_lock_directory = /var/run/barman
+
+; Log location
+log_file = /var/log/barman/barman.log
+
+; Log level (see https://docs.python.org/3/library/logging.html#levels)
+log_level = INFO
+
+; Default compression level: possible values are None (default), bzip2, gzip, pigz, pygzip or pybzip2
+compression = gzip
+
+; Pre/post backup hook scripts
+;pre_backup_script = env | grep ^BARMAN
+;pre_backup_retry_script = env | grep ^BARMAN
+;post_backup_retry_script = env | grep ^BARMAN
+;post_backup_script = env | grep ^BARMAN
+
+; Pre/post archive hook scripts
+;pre_archive_script = env | grep ^BARMAN
+;pre_archive_retry_script = env | grep ^BARMAN
+;post_archive_retry_script = env | grep ^BARMAN
+;post_archive_script = env | grep ^BARMAN
+
+; Pre/post delete scripts
+;pre_delete_script = env | grep ^BARMAN
+;pre_delete_retry_script = env | grep ^BARMAN
+;post_delete_retry_script = env | grep ^BARMAN
+;post_delete_script = env | grep ^BARMAN
+
+; Pre/post wal delete scripts
+;pre_wal_delete_script = env | grep ^BARMAN
+;pre_wal_delete_retry_script = env | grep ^BARMAN
+;post_wal_delete_retry_script = env | grep ^BARMAN
+;post_wal_delete_script = env | grep ^BARMAN
+
+; Global bandwidth limit in KBPS - default 0 (meaning no limit)
+;bandwidth_limit = 4000
+
+; Number of parallel jobs for backup and recovery via rsync (default 1)
+;parallel_jobs = 1
+
+; Immediate checkpoint for backup command - default false
+;immediate_checkpoint = false
+
+; Enable network compression for data transfers - default false
+;network_compression = false
+
+; Number of retries of data copy during base backup after an error - default 0
+basebackup_retry_times = 3
+
+; Number of seconds of wait after a failed copy, before retrying - default 30
+basebackup_retry_sleep = 30
+
+; Maximum execution time, in seconds, per server
+; for a barman check command - default 30
+;check_timeout = 30
+
+; Time frame that must contain the latest backup date.
+; If the latest backup is older than the time frame, barman check
+; command will report an error to the user.
+; If empty, the latest backup is always considered valid.
+; Syntax for this option is: "i (DAYS | WEEKS | MONTHS)" where i is an
+; integer > 0 which identifies the number of days | weeks | months of
+; validity of the latest backup for this check. Also known as 'smelly backup'.
+;last_backup_maximum_age =
+
+; Minimum number of required backups (redundancy)
+;minimum_redundancy = 1
+
+; Global retention policy (REDUNDANCY or RECOVERY WINDOW)
+; Examples of retention policies
+; Retention policy (disabled, default)
+retention_policy = RECOVERY WINDOW OF 30 DAYS
+; Retention policy (based on redundancy)
+;retention_policy = REDUNDANCY 2
+; Retention policy (based on recovery window)
+;retention_policy = RECOVERY WINDOW OF 4 WEEKS
+
+
+
+Using root to create below volatile environment for lock files
+========================================================================
+mkdir -p /var/run/barman
+chown barman:barman /var/run/barman
+cd /etc/barman.d/
+cp ssh-server.conf-template main.conf
+
+
+vim /etc/barman.d/main.conf
+========================================================================
+; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; SSH options (mandatory)
+; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+ssh_command = ssh postgres@oel7postdb1
+
+; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; PostgreSQL connection string (mandatory)
+; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+conninfo = host=oel7postdb1 user=postgres dbname=postgres
+
+; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Backup settings (via rsync over SSH)
+; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+backup_method = rsync
+
+; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Continuous WAL archiving (via 'archive_command')
+; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+archiver = on
+
+
+
+
+Check commands
+========================================================================
+barman show-server main
+barman check main
+
+
+-bash-4.2$ barman check main
+Server main:
+        PostgreSQL: OK
+        is_superuser: OK
+        wal_level: OK
+        directories: OK
+        retention policy settings: OK
+        backup maximum age: OK (no last_backup_maximum_age provided)
+        compression settings: OK
+        failed backups: OK (there are 0 failed backups)
+        minimum redundancy requirements: OK (have 0 backups, expected at least 0)
+        ssh: OK (PostgreSQL server)
+        not in recovery: OK
+        archive_mode: OK
+        archive_command: OK
+        continuous archiving: OK
+        archiver errors: OK
+
+
+Perform back db
+========================================================================
+fullbackup
+barman backup main
+-bash-4.2$ barman backup main
+Starting backup using rsync-exclusive method for server main in /var/lib/barman/main/base/20190708T100116
+Backup start at LSN: 0/9D000028 (00000009000000000000009D, 00000028)
+This is the first backup for server main
+WAL segments preceding the current backup have been found:
+        00000009000000000000009B from server main has been removed
+Starting backup copy via rsync/SSH for 20190708T100116
+Copy done (time: 1 minute, 1 second)
+This is the first backup for server main
+WAL segments preceding the current backup have been found:
+        00000009000000000000009C from server main has been removed
+Asking PostgreSQL server to finalize the backup.
+Backup size: 976.2 MiB
+Backup end at LSN: 0/9D01CC20 (00000009000000000000009D, 0001CC20)
+Backup completed (start time: 2019-07-08 10:01:21.335489, elapsed time: 1 minute, 3 seconds)
+Processing xlog segments from file archival for main
+        00000009000000000000009D
+        00000009000000000000009D.00000028.backup
+
+List the backup available
+========================================================================
+-bash-4.2$ barman list-backup main
+main 20190708T100116 - Mon Jul  8 10:02:24 2019 - Size: 976.3 MiB - WAL Size: 0 B (tablespaces: cust_tbs:/u01/app/PostgreSQL/10/udata)
+
+
+Incremental backup
+========================================================================
+-bash-4.2$ barman backup --reuse=link main
+Starting backup using rsync-exclusive method for server main in /var/lib/barman/main/base/20190708T100955
+Backup start at LSN: 0/9F000028 (00000009000000000000009F, 00000028)
+Starting backup copy via rsync/SSH for 20190708T100955
+Copy done (time: 4 seconds)
+Asking PostgreSQL server to finalize the backup.
+Backup size: 1015.8 MiB. Actual size on disk: 53.0 MiB (-94.78% deduplication ratio).
+Backup end at LSN: 0/9F0EFEA0 (00000009000000000000009F, 000EFEA0)
+Backup completed (start time: 2019-07-08 10:09:55.638942, elapsed time: 6 seconds)
+Processing xlog segments from file archival for main
+        00000009000000000000009F
+        00000009000000000000009F.00000028.backup
+
+-bash-4.2$ barman list-backup main
+main 20190708T100955 - Mon Jul  8 10:10:02 2019 - Size: 1016.1 MiB - WAL Size: 0 B (tablespaces: cust_tbs:/u01/app/PostgreSQL/10/udata)
+main 20190708T100116 - Mon Jul  8 10:02:24 2019 - Size: 976.3 MiB - WAL Size: 637.4 KiB (tablespaces: cust_tbs:/u01/app/PostgreSQL/10/udata)
+-bash-4.2$
+
+
+
+
+Recover of that back to specific directory inside the remote primary server from the barman backup server
+================================================================================================================================================
+barman recover main 20190708T100955 /tmp/data --remote-ssh-command "ssh postgres@oel7postdb1"
+
+Starting remote restore for server main using backup 20190708T100955
+Destination directory: /tmp/data
+Remote command: ssh postgres@oel7postdb1
+        24577, cust_tbs, /u01/app/PostgreSQL/10/udata
+Copying the base backup.
+Copying required WAL segments.
+Generating archive status files
+Identify dangerous settings in destination directory.
+
+IMPORTANT
+These settings have been modified to prevent data losses
+
+postgresql.conf line 222: archive_command = false
+
+WARNING
+You are required to review the following options as potentially dangerous
+
+postgresql.conf line 41: data_directory = '/u01/app/PostgreSQL/10/data'
+
+Recovery completed (start time: 2019-07-08 11:44:30.906834, elapsed time: 1 minute, 3 seconds)
+
+Your PostgreSQL server has been successfully prepared for recovery!
+
+
+
+In the primary db
+========================================================================
+while db still running. it is still not yet recover.
+postgres=# \l
+                                  List of databases
+   Name    |  Owner   | Encoding |   Collate   |    Ctype    |   Access privileges
+-----------+----------+----------+-------------+-------------+-----------------------
+ postgres  | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 |
+ repmgr    | repmgr   | UTF8     | en_US.UTF-8 | en_US.UTF-8 |
+ template0 | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 | =c/postgres          +
+           |          |          |             |             | postgres=CTc/postgres
+ template1 | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 | =c/postgres          +
+           |          |          |             |             | postgres=CTc/postgres
+ testdb    | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 |
+
+Stop db and replace the recovered files into it.
+========================================================================
+systemctl stop postgresql-10.service
+su - postgres
+rm -fr ~/data/*
+mv /tmp/data/* ~/data/
+vim ~/data/postgresql.conf
+Uncomment the archive_command
+systemctl start postgresql-10.service
+
+-bash-4.2$ psql
+psql.bin (10.7, server 10.8)
+Type "help" for help.
+
+postgres=# \l
+                                  List of databases
+   Name    |  Owner   | Encoding |   Collate   |    Ctype    |   Access privileges
+-----------+----------+----------+-------------+-------------+-----------------------
+ postgres  | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 |
+ repmgr    | repmgr   | UTF8     | en_US.UTF-8 | en_US.UTF-8 |
+ template0 | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 | =c/postgres          +
+           |          |          |             |             | postgres=CTc/postgres
+ template1 | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 | =c/postgres          +
+           |          |          |             |             | postgres=CTc/postgres
+ testback  | postgres | UTF8     | en_US.UTF-8 | en_US.UTF-8 |
+ testdb   
+
